@@ -1,3 +1,14 @@
 .env
 *.local
 .env.example
+node_modules/
+dist/
+coverage/
+logs/
+*.log
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+*.bak

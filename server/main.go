@@ -2,7 +2,9 @@ package main
 
 import (
 	"log"
+	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -54,6 +56,7 @@ func main() {
 
 	// Register routes
 	routes.RegisterRoutes(router, db, jwtSecret)
+	registerFrontendRoutes(router)
 
 	// Start server
 	port := os.Getenv("PORT")
@@ -63,6 +66,48 @@ func main() {
 
 	log.Printf("Server running on port %s", port)
 	router.Run(":" + port)
+}
+
+func registerFrontendRoutes(router *gin.Engine) {
+	// Optional SPA hosting for production deployments.
+	frontendDistDir := strings.TrimSpace(os.Getenv("FRONTEND_DIST_DIR"))
+	if frontendDistDir == "" {
+		return
+	}
+
+	indexPath := filepath.Join(frontendDistDir, "index.html")
+	if _, err := os.Stat(indexPath); err != nil {
+		log.Printf("Skipping frontend routes: %s not found", indexPath)
+		return
+	}
+
+	router.Static("/assets", filepath.Join(frontendDistDir, "assets"))
+	router.StaticFile("/favicon.ico", filepath.Join(frontendDistDir, "favicon.ico"))
+
+	router.GET("/", func(c *gin.Context) {
+		c.File(indexPath)
+	})
+
+	router.GET("/app", func(c *gin.Context) {
+		c.File(indexPath)
+	})
+	router.GET("/app/*path", func(c *gin.Context) {
+		c.File(indexPath)
+	})
+	router.GET("/login", func(c *gin.Context) {
+		c.File(indexPath)
+	})
+
+	router.NoRoute(func(c *gin.Context) {
+		path := c.Request.URL.Path
+		if strings.HasPrefix(path, "/api/") {
+			c.JSON(http.StatusNotFound, gin.H{"error": "route not found"})
+			return
+		}
+
+		// Let client-side router resolve other paths.
+		c.File(indexPath)
+	})
 }
 
 func corsMiddleware() gin.HandlerFunc {
